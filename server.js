@@ -40,7 +40,8 @@ const routes = {
   admin: withBase('/admin'),
   password: withBase('/admin/password'),
   webhooks: withBase('/admin/webhooks'),
-  webhookDelete: (id) => withBase(`/admin/webhooks/${id}/delete`)
+  webhookDelete: (id) => withBase(`/admin/webhooks/${id}/delete`),
+  webhookEdit: (id) => withBase(`/admin/webhooks/${id}/edit`)
 };
 
 // Helpers
@@ -186,10 +187,13 @@ app.get(routes.admin, requireLogin, (req, res) => {
       <td class="px-4 py-3 text-xs text-slate-500 break-words">${messagePreview || '-'}</td>
       <td class="px-4 py-3 text-sm text-slate-700">${w.retry ?? '-'}</td>
       <td class="px-4 py-3 text-sm text-slate-700">${w.expire ?? '-'}</td>
-      <td class="px-4 py-3 text-right">
-        <form class="inline" method="post" action="${routes.webhookDelete(w.id)}" onsubmit="return confirm('确定删除该 webhook?');">
-          <button class="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-rose-600" type="submit">删除</button>
-        </form>
+      <td class="px-4 py-3">
+        <div class="flex items-center justify-end gap-2 whitespace-nowrap">
+          <a href="${routes.webhookEdit(w.id)}" class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600">编辑</a>
+          <form class="inline" method="post" action="${routes.webhookDelete(w.id)}" onsubmit="return confirm('确定删除该 webhook?');">
+            <button class="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-rose-600" type="submit">删除</button>
+          </form>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -427,6 +431,122 @@ app.post(routes.password, requireLogin, (req, res) => {
 app.post(withBase('/admin/webhooks/:id/delete'), requireLogin, (req, res) => {
   const { id } = req.params;
   db.webhooks = db.webhooks.filter(w => w.id !== id);
+  saveDB();
+  res.redirect(routes.admin);
+});
+
+// Edit webhook
+app.get(withBase('/admin/webhooks/:id/edit'), requireLogin, (req, res) => {
+  const { id } = req.params;
+  const hook = db.webhooks.find(w => w.id === id);
+  if (!hook) return res.status(404).send(renderPage('未找到', '<div class="rounded-xl bg-white p-6 shadow">未找到该 Webhook</div>'));
+
+  const providers = Array.isArray(hook.providers) && hook.providers.length ? hook.providers : [hook.provider || 'pushover'];
+  const isP = providers.includes('pushover');
+  const checked = (p) => (providers.includes(p) ? 'checked' : '');
+  const base = config.publicBaseUrl || '';
+  const path = `/hook/${hook.id}/${hook.token}`;
+  const url = base ? base.replace(/\/$/, '') + path : path;
+
+  const html = `
+    <div class="max-w-3xl mx-auto">
+      <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-slate-900">编辑 Webhook</h2>
+          <a href="${routes.admin}" class="text-sm text-indigo-600 hover:underline">返回列表</a>
+        </div>
+        <p class="text-xs text-slate-500">Webhook URL：<span class="font-mono text-indigo-600 break-all">${url}</span></p>
+        <form method="post" action="${routes.webhookEdit(hook.id)}" class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-slate-600">名称</label>
+            <input name="name" value="${hook.name || ''}" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600">推送类型（可多选）</label>
+            <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
+              <label class="inline-flex items-center gap-2">
+                <input type="checkbox" name="providers" value="pushover" id="pv_pushover" ${checked('pushover')} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                <span>Pushover</span>
+              </label>
+              <label class="inline-flex items-center gap-2">
+                <input type="checkbox" name="providers" value="telegram" id="pv_telegram" ${checked('telegram')} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                <span>Telegram</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block text-sm font-medium text-slate-600">优先级 priority</label>
+              <select name="priority" id="priority" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                <option value="-2" ${hook.priority===-2?'selected':''}>-2 (最低)</option>
+                <option value="-1" ${hook.priority===-1?'selected':''}>-1 (较低)</option>
+                <option value="0" ${hook.priority===0?'selected':''}>0 (普通)</option>
+                <option value="1" ${hook.priority===1?'selected':''}>1 (高)</option>
+                <option value="2" ${hook.priority===2?'selected':''}>2 (紧急，需要 retry/expire)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600">重试 retry (秒)</label>
+              <input name="retry" id="retry" type="number" min="30" step="1" value="${hook.retry ?? ''}" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600">过期 expire (秒)</label>
+              <input name="expire" id="expire" type="number" min="60" step="1" value="${hook.expire ?? ''}" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600">默认消息 message</label>
+            <textarea name="message" rows="4" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">${(hook.message||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+          </div>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">保存修改</button>
+            <a href="${routes.admin}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600">取消</a>
+          </div>
+        </form>
+      </div>
+    </div>`;
+
+  const htmlWithScript = html + `
+    <script>
+      (function(){
+        const pP = document.getElementById('pv_pushover');
+        const fields = ['priority','retry','expire'];
+        function sync(){
+          const isP = !pP || pP.checked;
+          fields.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const wrapper = el.closest('div');
+            if (wrapper) wrapper.style.display = isP ? '' : 'none';
+          });
+        }
+        if (pP){ pP.addEventListener('change', sync); sync(); }
+      })();
+    </script>`;
+  res.send(renderPage('编辑 Webhook', htmlWithScript));
+});
+
+app.post(withBase('/admin/webhooks/:id/edit'), requireLogin, (req, res) => {
+  const { id } = req.params;
+  const hook = db.webhooks.find(w => w.id === id);
+  if (!hook) return res.status(404).send(renderPage('未找到', '<div class="rounded-xl bg-white p-6 shadow">未找到该 Webhook</div>'));
+
+  const { name, provider, priority, message, retry, expire } = req.body || {};
+  let providers = req.body.providers;
+  if (!providers || (Array.isArray(providers) && providers.length === 0)) {
+    providers = provider || 'pushover';
+  }
+  if (!Array.isArray(providers)) providers = [providers];
+  providers = providers.filter(Boolean);
+  if (providers.length === 0) providers = ['pushover'];
+
+  hook.name = name || '';
+  hook.providers = providers;
+  hook.priority = Number(priority || 0);
+  hook.message = message || '';
+  hook.retry = retry ? Number(retry) : undefined;
+  hook.expire = expire ? Number(expire) : undefined;
+
   saveDB();
   res.redirect(routes.admin);
 });

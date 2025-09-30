@@ -26,8 +26,9 @@
 1. 登录入口：使用启动日志中的 Admin login URL 访问。
 2. 登录凭据：使用日志中的账号密码（或 `config.js` 中自定义的账号密码）。
 3. 修改密码：登录后通过导航中的“修改密码”链接进入（路径位于随机入口下，例如 `/随机路径/admin/password`）。首次修改会更新 `data/admin.json`。
-4. 新增 webhook：在“管理面板”列表页中填写名称、priority、默认 message，以及 priority=2 时必填的 retry/expire，保存后会生成触发 URL（`/hook/:id/:token`）。
-5. 触发通知：对生成的 URL 发起 POST 或 GET 请求即可向相应通道推送，可通过 body 或 query 覆盖默认消息：
+4. 新增 webhook：在“管理面板”列表页填写名称、选择推送类型（可多选），Pushover 可设置 priority/retry/expire，保存后会生成触发 URL（`/hook/:id/:token`）。
+5. 编辑 webhook：在列表中点击“编辑”可更新名称、推送类型与默认参数。
+6. 触发通知：对生成的 URL 发起 POST 或 GET 请求即可向相应通道推送，可通过 body 或 query 覆盖默认消息：
    ```bash
    curl -X POST "http://localhost:3000/hook/ID/TOKEN" \
      -H "Content-Type: application/json" \
@@ -142,7 +143,7 @@ curl -X POST https://api.pushover.net/1/messages.json \
 
 ## 展示
 
-  ![示例界面](docs/screenshots/example.png)
+  ![示例界面（示意图）](docs/screenshots/example.svg)
 
 ## 安全建议
 - 使用 priority=2 时务必提供 retry 与 expire。
