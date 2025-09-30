@@ -7,6 +7,7 @@ Push Webhook Server (Pushover)
 - 提供触发 URL，调用后会向 Pushover 发送通知。
 - 首次启动时自动生成后台入口路径和随机管理员账号密码（可自定义/修改）。
 - 端口、管理员账号、后台路径、Pushover appToken/userKey 等通过 config.js 配置。
+- 后台界面使用 Tailwind UI 风格，支持桌面与移动端访问。
 
 快速开始
 1) 安装依赖
@@ -32,9 +33,9 @@ Push Webhook Server (Pushover)
    - 首次修改会在 data/admin.json 写入新的哈希密码；后续登录将以该文件为准
 
 5) 添加 webhook
-   - 登录后访问 /admin
-   - 填写名称、priority、默认 message、以及 priority=2 时必填的 retry/expire
-   - 保存后可看到一个触发 URL（例如 /hook/:id/:token）。
+   - 登录成功后，使用导航中的“管理面板”进入列表页（实际路径为启动日志中的随机入口 + `/admin`）
+   - 填写名称、priority、默认 message，以及 priority=2 时必填的 retry/expire
+   - 保存后可看到一个触发 URL（格式 `/hook/:id/:token`）。
 
 6) 触发通知
    - 对该 URL 发起 POST（或 GET），即可向 Pushover 推送。

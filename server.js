@@ -53,39 +53,43 @@ function requireLogin(req, res, next) {
   next();
 }
 
-function renderPage(title, bodyHtml) {
+function renderPage(title, bodyHtml, opts = {}) {
+  const { showNav = true } = opts;
+  const headerHtml = showNav
+    ? `<header class="bg-white/90 border-b border-slate-200 backdrop-blur">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="text-base font-semibold tracking-tight text-slate-900">Push Webhook 控制台</span>
+            <span class="text-xs uppercase tracking-wider text-slate-400">${title}</span>
+          </div>
+          <nav class="flex items-center gap-2 text-sm font-medium text-slate-600">
+            <a class="px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition" href="${routes.admin}">管理面板</a>
+            <a class="px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition" href="${routes.password}">修改密码</a>
+            <a class="px-3 py-2 rounded-lg text-rose-500 hover:bg-rose-50 transition" href="${routes.logout}">退出</a>
+          </nav>
+        </div>
+      </header>`
+    : '';
+
   return `<!doctype html>
   <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
-    <style>
-      body{font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, PingFang SC, Noto Sans, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem;}
-      header{display:flex; justify-content: space-between; align-items:center; margin-bottom: 1rem;}
-      table{border-collapse:collapse; width:100%;}
-      th,td{border:1px solid #ddd; padding:8px;}
-      th{background:#f7f7f7;}
-      input, select, textarea { padding: 6px 8px; font-size: 14px; }
-      form.inline { display:inline; }
-      .muted{color:#777}
-      .danger{color:#b00020}
-      .code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
-      .row{display:flex; gap:8px; flex-wrap:wrap;}
-      .row > * { flex: 1 1 auto; min-width: 180px; }
-      .btn{ padding:6px 10px; cursor:pointer; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-  <header>
-    <h2>${title}</h2>
-    <nav>
-      <a href="${routes.admin}">管理</a>
-      <a href="${routes.password}">修改密码</a>
-      <a href="${routes.logout}">退出</a>
-    </nav>
-  </header>
-  ${bodyHtml}
+  <body class="bg-slate-100 text-slate-800 min-h-screen">
+    <div class="min-h-screen flex flex-col">
+      ${headerHtml}
+      <main class="flex-1 container mx-auto px-4 py-10">${bodyHtml}</main>
+      <footer class="bg-slate-900 text-slate-400 text-xs">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+          <span>Push Webhook Server</span>
+          <span>Tailwind UI 风格界面</span>
+        </div>
+      </footer>
+    </div>
   </body></html>`;
 }
 
@@ -109,17 +113,34 @@ app.get(routes.login, (req, res) => {
         : '请使用 config.js 中配置的管理员账号登录。')
     : '请使用已设置的管理员账号登录。';
 
+  const hintBlock = loginHint
+    ? `<div class="mt-4 rounded-xl border border-slate-200 bg-white/70 px-4 py-3 text-sm text-slate-600 leading-relaxed">
+         ${loginHint}
+       </div>`
+    : '';
+
   const html = `
-    <h3>管理员登录</h3>
-    <form method="post" action="${routes.login}">
-      <div class="row">
-        <label>用户名<br><input name="username" required></label>
-        <label>密码<br><input name="password" type="password" required></label>
+    <div class="max-w-md mx-auto">
+      <div class="bg-white/90 backdrop-blur shadow-xl rounded-2xl p-8 space-y-6">
+        <div>
+          <h1 class="text-2xl font-semibold text-slate-900">管理员登录</h1>
+          <p class="text-sm text-slate-500 mt-1">请输入账号密码进入控制台</p>
+        </div>
+        <form class="space-y-5" method="post" action="${routes.login}">
+          <div>
+            <label class="block text-sm font-medium text-slate-600">用户名</label>
+            <input name="username" required autocomplete="username" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="请输入用户名" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600">密码</label>
+            <input name="password" type="password" required autocomplete="current-password" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="请输入密码" />
+          </div>
+          <button type="submit" class="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">登录</button>
+        </form>
       </div>
-      <p><button class="btn" type="submit">登录</button></p>
-      <p class="muted">${loginHint}</p>
-    </form>`;
-  res.send(renderPage('登录', html));
+      ${hintBlock}
+    </div>`;
+  res.send(renderPage('登录', html, { showNav: false }));
 });
 
 app.post(routes.login, (req, res) => {
@@ -128,7 +149,17 @@ app.post(routes.login, (req, res) => {
     req.session.auth = true;
     return res.redirect(routes.admin);
   }
-  res.status(401).send(renderPage('登录失败', `<p class="danger">账号或密码错误</p><p><a href="${routes.login}">返回登录</a></p>`));
+  const html = `
+    <div class="max-w-md mx-auto">
+      <div class="bg-white shadow-xl rounded-2xl p-8 space-y-5">
+        <div class="space-y-2">
+          <h2 class="text-xl font-semibold text-slate-900">登录失败</h2>
+          <p class="text-sm text-rose-500">账号或密码错误，请重试。</p>
+        </div>
+        <a href="${routes.login}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600">返回登录</a>
+      </div>
+    </div>`;
+  res.status(401).send(renderPage('登录失败', html, { showNav: false }));
 });
 
 app.get(routes.logout, (req, res) => {
@@ -143,60 +174,114 @@ app.get(routes.admin, requireLogin, (req, res) => {
   const rows = db.webhooks.map(w => {
     const path = `/hook/${w.id}/${w.token}`;
     const url = base ? base.replace(/\/$/, '') + path : path;
+    const messagePreview = w.message?.length > 80 ? `${w.message.slice(0, 77)}…` : (w.message || '');
     return `<tr>
-      <td>${w.name || ''}</td>
-      <td class="code">${url}</td>
-      <td>${w.priority}</td>
-      <td class="code">${w.message?.length > 80 ? (w.message.slice(0, 77) + '...') : (w.message || '')}</td>
-      <td>${w.retry || ''}</td>
-      <td>${w.expire || ''}</td>
-      <td>
+      <td class="px-4 py-3 text-sm font-semibold text-slate-900">${w.name || '-'}</td>
+      <td class="px-4 py-3 text-xs font-mono text-indigo-600 break-all">${url}</td>
+      <td class="px-4 py-3 text-sm text-slate-700">${w.priority}</td>
+      <td class="px-4 py-3 text-xs text-slate-500 break-words">${messagePreview || '-'}</td>
+      <td class="px-4 py-3 text-sm text-slate-700">${w.retry ?? '-'}</td>
+      <td class="px-4 py-3 text-sm text-slate-700">${w.expire ?? '-'}</td>
+      <td class="px-4 py-3 text-right">
         <form class="inline" method="post" action="${routes.webhookDelete(w.id)}" onsubmit="return confirm('确定删除该 webhook?');">
-          <button class="btn danger" type="submit">删除</button>
+          <button class="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-rose-600" type="submit">删除</button>
         </form>
       </td>
     </tr>`;
   }).join('');
+  const tableSection = db.webhooks.length
+    ? `<div class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+         <table class="min-w-full divide-y divide-slate-200">
+           <thead class="bg-slate-50">
+             <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+               <th class="px-4 py-3">名称</th>
+               <th class="px-4 py-3">Webhook URL</th>
+               <th class="px-4 py-3">优先级</th>
+               <th class="px-4 py-3">默认消息</th>
+               <th class="px-4 py-3">重试(s)</th>
+               <th class="px-4 py-3">过期(s)</th>
+               <th class="px-4 py-3 text-right">操作</th>
+             </tr>
+           </thead>
+           <tbody class="divide-y divide-slate-100 bg-white">${rows}</tbody>
+         </table>
+       </div>`
+    : `<div class="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-10 text-center text-slate-500">
+         <p class="text-sm">尚未创建任何 webhook，使用右侧表单即可快速创建。</p>
+       </div>`;
 
   const html = `
-    <section>
-      <p class="muted">当前后台入口路径：<span class="code">${routes.base}</span></p>
-      <p class="muted">登录地址：<span class="code">${loginUrlDisplay}</span></p>
-      <p class="muted">管理面板：<span class="code">${adminUrlDisplay}</span></p>
-    </section>
-    <section>
-      <h3>Webhook 列表</h3>
-      <table>
-        <thead><tr><th>名称</th><th>URL</th><th>优先级</th><th>消息</th><th>重试(s)</th><th>过期(s)</th><th>操作</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="muted">暂无</td></tr>'}</tbody>
-      </table>
-    </section>
-    <section>
-      <p><a href="${routes.password}">修改管理员密码</a></p>
-      <h3 style="margin-top:1.5rem">新增 Webhook</h3>
-      <form method="post" action="${routes.webhooks}">
-        <div class="row">
-          <label>名称<br><input name="name" placeholder="例如：USDE 报警"></label>
-          <label>优先级 priority<br>
-            <select name="priority" required>
-              <option value="-2">-2 (最低)</option>
-              <option value="-1">-1 (较低)</option>
-              <option value="0" selected>0 (普通)</option>
-              <option value="1">1 (高)</option>
-              <option value="2">2 (紧急，需 retry/expire)</option>
-            </select>
-          </label>
-          <label>重试(秒) retry<br><input name="retry" type="number" min="30" step="1" placeholder="仅 priority=2 需要"></label>
-          <label>过期(秒) expire<br><input name="expire" type="number" min="60" step="1" placeholder="仅 priority=2 需要"></label>
+    <div class="space-y-10">
+      <div class="grid gap-6 md:grid-cols-2">
+        <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-3">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500">后台入口</h3>
+          <div class="space-y-2 text-sm text-slate-600">
+            <p>当前入口路径：<span class="font-mono text-indigo-600">${routes.base}</span></p>
+            <p>登录地址：<span class="font-mono text-indigo-600 break-all">${loginUrlDisplay}</span></p>
+            <p>管理面板：<span class="font-mono text-indigo-600 break-all">${adminUrlDisplay}</span></p>
+          </div>
         </div>
-        <label>消息内容 message<br>
-          <textarea name="message" rows="3" placeholder="默认消息，可在触发时用 message 覆盖"></textarea>
-        </label>
-        <p class="muted">Pushover 将使用 config.js 中的 appToken 和 userKey 发送。</p>
-        <p><button class="btn" type="submit">添加</button></p>
-      </form>
-    </section>`;
-  res.send(renderPage('Webhook 管理', html));
+        <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-3">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500">快速提示</h3>
+          <ul class="space-y-2 text-sm text-slate-600 list-disc list-inside">
+            <li>请尽快在“修改密码”中替换随机生成的初始密码。</li>
+            <li>复制 webhook URL 时，请包含完整的 ID 与 token。</li>
+            <li>若部署到公网，请在 config.js 设置 publicBaseUrl 以展示完整外网地址。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid gap-8 lg:grid-cols-5">
+        <div class="lg:col-span-3 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Webhook 列表</h2>
+            <span class="text-xs font-medium text-slate-500">共 ${db.webhooks.length} 个</span>
+          </div>
+          ${tableSection}
+        </div>
+        <div class="lg:col-span-2">
+          <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-6">
+            <div class="space-y-2">
+              <h2 class="text-lg font-semibold text-slate-900">新增 Webhook</h2>
+              <p class="text-sm text-slate-500">配置默认 Pushover 参数，可在触发时覆盖。</p>
+            </div>
+            <form method="post" action="${routes.webhooks}" class="space-y-5">
+              <div>
+                <label class="block text-sm font-medium text-slate-600">名称</label>
+                <input name="name" placeholder="例如：USDE 报警" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="block text-sm font-medium text-slate-600">优先级 priority</label>
+                  <select name="priority" required class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                    <option value="-2">-2 (最低)</option>
+                    <option value="-1">-1 (较低)</option>
+                    <option value="0" selected>0 (普通)</option>
+                    <option value="1">1 (高)</option>
+                    <option value="2">2 (紧急，需要 retry/expire)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-600">重试 retry (秒)</label>
+                  <input name="retry" type="number" min="30" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-600">过期 expire (秒)</label>
+                  <input name="expire" type="number" min="60" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-600">默认消息 message</label>
+                <textarea name="message" rows="4" placeholder="默认消息，可在触发时通过 message 参数覆盖" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"></textarea>
+              </div>
+              <p class="text-xs text-slate-500">Pushover 将使用 config.js 中配置的 appToken 和 userKey 发送通知。</p>
+              <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">创建 Webhook</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  res.send(renderPage('Pushover Webhook 管理', html));
 });
 
 app.post(routes.webhooks, requireLogin, (req, res) => {
@@ -221,39 +306,77 @@ app.post(routes.webhooks, requireLogin, (req, res) => {
 app.get(routes.password, requireLogin, (req, res) => {
   const source = hasAdminFile() ? '已设置（data/admin.json）' : '使用默认（config.js）';
   const html = `
-    <section>
-      <h3>修改管理员密码</h3>
-      <p class="muted">当前凭据来源：${source}</p>
-      <form method="post" action="${routes.password}">
-        <div class="row">
-          <label>当前密码<br><input name="current" type="password" required></label>
-          <label>新密码<br><input name="next" type="password" required minlength="6"></label>
-          <label>确认新密码<br><input name="confirm" type="password" required minlength="6"></label>
+    <div class="max-w-2xl mx-auto">
+      <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm space-y-8">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-semibold text-slate-900">修改管理员密码</h2>
+          <p class="text-sm text-slate-500">更新后系统会要求重新登录，新的密码会写入 data/admin.json。</p>
+          <span class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600">当前凭据来源：${source}</span>
         </div>
-        <p><button class="btn" type="submit">更新密码</button></p>
-      </form>
-      <p class="muted">提示：更新成功后将需要重新登录。</p>
-    </section>`;
+        <form method="post" action="${routes.password}" class="space-y-5">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600">当前密码</label>
+              <input name="current" type="password" required autocomplete="current-password" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="请输入当前密码" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600">新密码</label>
+              <input name="next" type="password" required minlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="至少 6 位" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600">确认新密码</label>
+              <input name="confirm" type="password" required minlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="再次输入新密码" />
+            </div>
+          </div>
+          <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">更新密码</button>
+        </form>
+        <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-600">
+          更新成功后当前会话将失效，需要使用新密码重新登录。
+        </div>
+      </div>
+    </div>`;
   res.send(renderPage('修改密码', html));
 });
 
 app.post(routes.password, requireLogin, (req, res) => {
   const { current, next, confirm } = req.body || {};
+  const sendError = (message) => res.status(400).send(renderPage('修改密码失败', `
+    <div class="max-w-xl mx-auto">
+      <div class="rounded-2xl border border-rose-100 bg-white p-8 shadow-sm space-y-5">
+        <div class="space-y-1">
+          <h2 class="text-xl font-semibold text-slate-900">修改密码失败</h2>
+          <p class="text-sm text-slate-500">请检查提示后重新提交。</p>
+        </div>
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">${message}</div>
+        <a href="${routes.password}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-indigo-400 hover:text-indigo-600">返回继续修改</a>
+      </div>
+    </div>`));
+
   if (!current || !next || !confirm) {
-    return res.status(400).send(renderPage('修改密码', `<p class="danger">请填写完整信息</p><p><a href="${routes.password}">返回</a></p>`));
+    return sendError('请填写完整信息');
   }
   if (next !== confirm) {
-    return res.status(400).send(renderPage('修改密码', `<p class="danger">两次输入的新密码不一致</p><p><a href="${routes.password}">返回</a></p>`));
+    return sendError('两次输入的新密码不一致');
   }
   if (String(next).length < 6) {
-    return res.status(400).send(renderPage('修改密码', `<p class="danger">新密码长度至少 6 位</p><p><a href="${routes.password}">返回</a></p>`));
+    return sendError('新密码长度至少 6 位');
   }
   const result = changeAdminPassword(current, next);
   if (!result.ok) {
-    return res.status(400).send(renderPage('修改密码', `<p class="danger">${result.error}</p><p><a href="${routes.password}">返回</a></p>`));
+    return sendError(result.error);
   }
   req.session.destroy(() => {
-    res.send(renderPage('密码已更新', `<p>密码已更新，请重新登录。</p><p><a href="${routes.login}">前往登录</a></p>`));
+    const successHtml = `
+      <div class="max-w-xl mx-auto">
+        <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm space-y-5">
+          <div class="space-y-1">
+            <h2 class="text-xl font-semibold text-slate-900">密码已更新</h2>
+            <p class="text-sm text-slate-500">密码更新成功，请使用新密码重新登录。</p>
+          </div>
+          <a href="${routes.login}" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">前往登录</a>
+        </div>
+      </div>`;
+    res.send(renderPage('密码已更新', successHtml));
   });
 });
 
