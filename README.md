@@ -1,6 +1,9 @@
 # Push Webhook Server (Pushover)
 
 ## 功能概述
+
+![示例界面（示意图）](docs/screenshots/example.png)
+
 - 管理 UI：登录后可添加/删除 webhook。
 - 支持 Pushover 与 Telegram 两种推送（逐条 Webhook 可多选通道）。
 - 管理员可在“修改密码”页更新密码（哈希存储于 data/admin.json）。
@@ -21,6 +24,21 @@
      - Admin username / password（若未在 `config.js` 自定义，将随机生成）
      - Admin login URL / Admin panel URL（带随机生成的路径片段）
    - 这些信息同时会写入 `data/admin.json`（凭据哈希）与 `data/server-meta.json`（后台路径）。
+
+### 环境确认
+2. 安装 Node.js ≥ 18 与 npm（可通过 NodeSource 或 nvm 获取最新 LTS 版本）。
+3. 确认证书与网络可访问 `api.pushover.net`。
+4. 确认证书与网络可访问 `api.telegram.org`。
+
+### 同步与配置
+1. `git clone https://github.com/summertian4/push-webhook-sever.git`
+2. `cd push-webhook-sever && npm install`
+3. `cp config_example.js config.js`，修改以下内容：
+   - `sessionSecret`：随机生成新的密钥。
+   - `admin`：可留默认让系统随机生成，也可自定义初始账号密码与后台路径。
+   - `pushover`：如需 Pushover，填入 `appToken` 与 `userKey`。
+   - `telegram`：如需 Telegram，填入 `botToken` 与 `chatId`。
+   - 如需固定端口，启动时设置 `PORT=3000` 等环境变量；部署公网请填写 `publicBaseUrl`。
 
 ### 登录与管理
 1. 登录入口：使用启动日志中的 Admin login URL 访问。
@@ -51,72 +69,6 @@
     -d '{"message":"Hello from Telegram"}'
   ```
 
-## 部署到服务器
-### 环境准备
-1. Ubuntu/Debian 等 Linux 服务器，建议新建专用用户运行服务。
-2. 安装 Node.js ≥ 18 与 npm（可通过 NodeSource 或 nvm 获取最新 LTS 版本）。
-3. 确认证书与网络可访问 `api.pushover.net`。
-
-### 同步与配置
-1. `git clone https://github.com/summertian4/push-webhook-sever.git`
-2. `cd push-webhook-sever && npm install`
-3. `cp config_example.js config.js`，修改以下内容：
-   - `sessionSecret`：随机生成新的密钥。
-   - `admin`：可留默认让系统随机生成，也可自定义初始账号密码与后台路径。
-   - `pushover`：如需 Pushover，填入 `appToken` 与 `userKey`。
-   - `telegram`：如需 Telegram，填入 `botToken` 与 `chatId`。
-   - 如需固定端口，启动时设置 `PORT=3000` 等环境变量；部署公网请填写 `publicBaseUrl`。
-
-### 首次启动
-```bash
-npm start
-```
-- 日志会输出随机后台路径、登录地址与初始账号密码（如未自定义），请妥善保存。
-- 在浏览器访问登录地址，确认页面正常后按 `Ctrl+C` 停止服务。
-
-### 常驻运行
-**PM2**（简单）
-```bash
-sudo npm install -g pm2
-pm2 start server.js --name push-webhook -f
-pm2 save
-pm2 status
-```
-
-**systemd**（更标准）
-创建 `/etc/systemd/system/push-webhook.service`：
-```ini
-[Unit]
-Description=Push Webhook Server
-After=network.target
-
-[Service]
-WorkingDirectory=/path/to/push-webhook-sever
-ExecStart=/usr/bin/node server.js
-Restart=always
-Environment=NODE_ENV=production PORT=3000
-User=youruser
-Group=youruser
-
-[Install]
-WantedBy=multi-user.target
-```
-然后执行：
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now push-webhook
-sudo systemctl status push-webhook
-```
-
-### 反向代理 / HTTPS
-- 使用 Nginx 或 Caddy 将外网请求代理到 `http://127.0.0.1:<PORT>`。
-- 配置 HTTPS 证书（例如 Let’s Encrypt）。
-
-### 数据与维护
-- `data/` 目录包含管理员凭据、后台路径与 webhook 列表，定期备份。
-- 更新流程：`git pull` → `npm install`（如依赖变化）→ 重启 PM2/systemd 服务。
-- 重置后台入口：删除 `data/server-meta.json` 后重启，即会重新生成随机路径。
-
 ## 配置文件（config.js）
 - sessionSecret：会话密钥（请修改）
 - admin：管理员账号密码以及可选 basePath（留空，则首次启动自动生成随机路径和账号密码）
@@ -141,9 +93,6 @@ curl -X POST https://api.pushover.net/1/messages.json \
   -d "expire=1800"
 ```
 
-## 展示
-
-  ![示例界面（示意图）](docs/screenshots/example.svg)
 
 ## 安全建议
 - 使用 priority=2 时务必提供 retry 与 expire。
