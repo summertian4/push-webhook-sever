@@ -2,16 +2,19 @@
 
 ## 功能概述
 - 管理 UI：登录后可添加/删除 webhook。
+- 支持 Pushover 与 Telegram 两种推送（逐条 Webhook 可多选通道）。
 - 管理员可在“修改密码”页更新密码（哈希存储于 data/admin.json）。
-- 每个 webhook 可配置 Pushover 的 priority、message、retry、expire。
-- 提供触发 URL，调用后会向 Pushover 发送通知。
+- 对于 Pushover，可配置 priority、message、retry、expire；对于 Telegram，仅需消息内容。
+- 提供触发 URL，调用后向所选通道发送通知。
 - 首次启动时自动生成后台入口路径和随机管理员账号密码（可自定义/修改）。
 - 端口、管理员账号、后台路径、Pushover appToken/userKey 等通过 config.js 配置。
 - 后台界面使用 Tailwind UI 风格，支持桌面与移动端访问。
   
 ## 快速开始
 1. 安装依赖：`npm install`
-2. 配置 Pushover：编辑 `config.js`，填入 `pushover.appToken` 和 `pushover.userKey`。
+2. 配置推送：编辑 `config.js`，按需填写以下任意一项或两项：
+   - `pushover.appToken` 和 `pushover.userKey`
+   - `telegram.botToken` 和 `telegram.chatId`
 3. 启动服务：`npm start`
    - 默认运行在 `http://localhost:3000`（可通过环境变量 `PORT` 指定；设为 `0` 则自动选择端口）。
    - 首次启动会在日志中输出：
@@ -24,7 +27,7 @@
 2. 登录凭据：使用日志中的账号密码（或 `config.js` 中自定义的账号密码）。
 3. 修改密码：登录后通过导航中的“修改密码”链接进入（路径位于随机入口下，例如 `/随机路径/admin/password`）。首次修改会更新 `data/admin.json`。
 4. 新增 webhook：在“管理面板”列表页中填写名称、priority、默认 message，以及 priority=2 时必填的 retry/expire，保存后会生成触发 URL（`/hook/:id/:token`）。
-5. 触发通知：对生成的 URL 发起 POST 或 GET 请求即可向 Pushover 推送，可通过 body 或 query 覆盖默认消息：
+5. 触发通知：对生成的 URL 发起 POST 或 GET 请求即可向相应通道推送，可通过 body 或 query 覆盖默认消息：
    ```bash
    curl -X POST "http://localhost:3000/hook/ID/TOKEN" \
      -H "Content-Type: application/json" \
@@ -36,6 +39,16 @@
 - message：默认使用在 UI 中配置的 message，也可在触发时覆盖。
 - retry：单位秒，仅 priority=2 需要，最小 30。
 - expire：单位秒，仅 priority=2 需要。
+
+### Telegram 额外说明
+- 在“新增 Webhook”中勾选 Telegram 即可（可与 Pushover 同时勾选）。
+- 全局使用 `config.js` 的 `telegram.botToken` 与 `telegram.chatId`；也可在触发时通过 `chatId`/`chat_id` 覆盖。
+- 示例（Telegram）：
+  ```bash
+  curl -X POST "http://localhost:3000/hook/ID/TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"message":"Hello from Telegram"}'
+  ```
 
 ## 部署到服务器
 ### 环境准备
@@ -49,7 +62,8 @@
 3. `cp config_example.js config.js`，修改以下内容：
    - `sessionSecret`：随机生成新的密钥。
    - `admin`：可留默认让系统随机生成，也可自定义初始账号密码与后台路径。
-   - `pushover`：填入真实的 `appToken` 与 `userKey`。
+   - `pushover`：如需 Pushover，填入 `appToken` 与 `userKey`。
+   - `telegram`：如需 Telegram，填入 `botToken` 与 `chatId`。
    - 如需固定端口，启动时设置 `PORT=3000` 等环境变量；部署公网请填写 `publicBaseUrl`。
 
 ### 首次启动
@@ -105,7 +119,8 @@ sudo systemctl status push-webhook
 ## 配置文件（config.js）
 - sessionSecret：会话密钥（请修改）
 - admin：管理员账号密码以及可选 basePath（留空，则首次启动自动生成随机路径和账号密码）
-- pushover：全局 appToken 与 userKey（请填写你自己的）
+- pushover：全局 appToken 与 userKey（可选）
+- telegram：全局 botToken 与 chatId（可选）
 - dataFile：webhook 数据存储文件路径
 - publicBaseUrl：用于 UI 展示完整 webhook URL（例如 https://your.domain）。留空则只显示路径。
 

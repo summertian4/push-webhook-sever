@@ -175,9 +175,13 @@ app.get(routes.admin, requireLogin, (req, res) => {
     const path = `/hook/${w.id}/${w.token}`;
     const url = base ? base.replace(/\/$/, '') + path : path;
     const messagePreview = w.message?.length > 80 ? `${w.message.slice(0, 77)}…` : (w.message || '');
+    const providers = Array.isArray(w.providers) && w.providers.length
+      ? w.providers
+      : [w.provider || 'pushover'];
     return `<tr>
       <td class="px-4 py-3 text-sm font-semibold text-slate-900">${w.name || '-'}</td>
       <td class="px-4 py-3 text-xs font-mono text-indigo-600 break-all">${url}</td>
+      <td class="px-4 py-3 text-xs font-medium text-slate-700">${providers.join(', ')}</td>
       <td class="px-4 py-3 text-sm text-slate-700">${w.priority}</td>
       <td class="px-4 py-3 text-xs text-slate-500 break-words">${messagePreview || '-'}</td>
       <td class="px-4 py-3 text-sm text-slate-700">${w.retry ?? '-'}</td>
@@ -196,6 +200,7 @@ app.get(routes.admin, requireLogin, (req, res) => {
              <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                <th class="px-4 py-3">名称</th>
                <th class="px-4 py-3">Webhook URL</th>
+               <th class="px-4 py-3">类型</th>
                <th class="px-4 py-3">优先级</th>
                <th class="px-4 py-3">默认消息</th>
                <th class="px-4 py-3">重试(s)</th>
@@ -243,17 +248,30 @@ app.get(routes.admin, requireLogin, (req, res) => {
           <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-6">
             <div class="space-y-2">
               <h2 class="text-lg font-semibold text-slate-900">新增 Webhook</h2>
-              <p class="text-sm text-slate-500">配置默认 Pushover 参数，可在触发时覆盖。</p>
+              <p class="text-sm text-slate-500">选择推送类型，配置默认参数（可在触发时覆盖）。</p>
             </div>
             <form method="post" action="${routes.webhooks}" class="space-y-5">
               <div>
                 <label class="block text-sm font-medium text-slate-600">名称</label>
                 <input name="name" placeholder="例如：USDE 报警" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
               </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-600">推送类型（可多选）</label>
+                <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
+                  <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" name="providers" value="pushover" id="pv_pushover" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                    <span>Pushover</span>
+                  </label>
+                  <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" name="providers" value="telegram" id="pv_telegram" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                    <span>Telegram</span>
+                  </label>
+                </div>
+              </div>
               <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label class="block text-sm font-medium text-slate-600">优先级 priority</label>
-                  <select name="priority" required class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                  <select name="priority" id="priority" required class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
                     <option value="-2">-2 (最低)</option>
                     <option value="-1">-1 (较低)</option>
                     <option value="0" selected>0 (普通)</option>
@@ -263,35 +281,61 @@ app.get(routes.admin, requireLogin, (req, res) => {
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-600">重试 retry (秒)</label>
-                  <input name="retry" type="number" min="30" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                  <input name="retry" id="retry" type="number" min="30" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-600">过期 expire (秒)</label>
-                  <input name="expire" type="number" min="60" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                  <input name="expire" id="expire" type="number" min="60" step="1" placeholder="仅 priority=2 必填" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
                 </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-600">默认消息 message</label>
                 <textarea name="message" rows="4" placeholder="默认消息，可在触发时通过 message 参数覆盖" class="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"></textarea>
               </div>
-              <p class="text-xs text-slate-500">Pushover 将使用 config.js 中配置的 appToken 和 userKey 发送通知。</p>
+              <p class="text-xs text-slate-500">Pushover 使用 config.js 的 appToken/userKey；Telegram 使用 config.js 的 botToken/chatId。</p>
               <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">创建 Webhook</button>
             </form>
           </div>
         </div>
       </div>
     </div>`;
-  res.send(renderPage('Pushover Webhook 管理', html));
+  const htmlWithScript = html + `
+    <script>
+      (function(){
+        const pP = document.getElementById('pv_pushover');
+        const fields = ['priority','retry','expire'];
+        function sync(){
+          const isP = !pP || pP.checked; // 只在选择了 Pushover 时显示相关字段
+          fields.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const wrapper = el.closest('div');
+            if (wrapper) wrapper.style.display = isP ? '' : 'none';
+          });
+        }
+        if (pP){ pP.addEventListener('change', sync); sync(); }
+      })();
+    </script>`;
+  res.send(renderPage('Webhook 管理', htmlWithScript));
 });
 
 app.post(routes.webhooks, requireLogin, (req, res) => {
-  const { name, priority, message, retry, expire } = req.body || {};
+  const { name, provider, priority, message, retry, expire } = req.body || {};
+  // 解析多选 providers；兼容旧的 provider 字段
+  let providers = req.body.providers;
+  if (!providers || (Array.isArray(providers) && providers.length === 0)) {
+    providers = provider || 'pushover';
+  }
+  if (!Array.isArray(providers)) providers = [providers];
+  providers = providers.filter(Boolean);
+  if (providers.length === 0) providers = ['pushover'];
   const id = uuidv4().slice(0, 8);
   const token = crypto.randomBytes(16).toString('hex');
   const hook = {
     id,
     token,
     name: name || '',
+    providers,
     priority: Number(priority || 0),
     message: message || '',
     retry: retry ? Number(retry) : undefined,
@@ -398,17 +442,43 @@ app.all('/hook/:id/:token', async (req, res) => {
   const priority = (req.body && req.body.priority != null) ? Number(req.body.priority) : (req.query && req.query.priority != null) ? Number(req.query.priority) : hook.priority;
   const retry = (req.body && req.body.retry != null) ? Number(req.body.retry) : (req.query && req.query.retry != null) ? Number(req.query.retry) : hook.retry;
   const expire = (req.body && req.body.expire != null) ? Number(req.body.expire) : (req.query && req.query.expire != null) ? Number(req.query.expire) : hook.expire;
+  const providers = Array.isArray(hook.providers) && hook.providers.length
+    ? hook.providers
+    : [hook.provider || 'pushover'];
 
   try {
-    const result = await sendPushover({
-      appToken: config.pushover.appToken,
-      userKey: config.pushover.userKey,
-      message,
-      priority,
-      retry,
-      expire
+    const tasks = providers.map(async (p) => {
+      if (p === 'telegram') {
+        const chatId = (req.body && (req.body.chatId || req.body.chat_id)) || (req.query && (req.query.chatId || req.query.chat_id)) || (config.telegram && config.telegram.chatId);
+        const r = await sendTelegram({
+          botToken: config.telegram && config.telegram.botToken,
+          chatId,
+          message
+        });
+        return ['telegram', { ok: true, result: r }];
+      }
+      const r = await sendPushover({
+        appToken: config.pushover.appToken,
+        userKey: config.pushover.userKey,
+        message,
+        priority,
+        retry,
+        expire
+      });
+      return ['pushover', { ok: true, result: r }];
     });
-    res.json({ ok: true, pushover: result });
+    const settled = await Promise.allSettled(tasks);
+    const out = {};
+    let anyOk = false;
+    for (const s of settled) {
+      if (s.status === 'fulfilled') {
+        const [k, v] = s.value; out[k] = v; anyOk = true;
+      } else {
+        out.error = out.error || [];
+        out.error.push(String(s.reason && s.reason.message || s.reason));
+      }
+    }
+    res.status(anyOk ? 200 : 502).json({ ok: anyOk, results: out });
   } catch (e) {
     res.status(502).json({ ok: false, error: e.message || String(e) });
   }
@@ -464,6 +534,44 @@ function sendPushover({ appToken, userKey, message, priority = 0, retry, expire 
     });
     req.on('error', reject);
     req.write(postData);
+    req.end();
+  });
+}
+
+function sendTelegram({ botToken, chatId, message }) {
+  return new Promise((resolve, reject) => {
+    if (!botToken || !chatId) {
+      return reject(new Error('Missing Telegram botToken/chatId in config.js'));
+    }
+    const form = querystring.stringify({
+      chat_id: chatId,
+      text: message
+    });
+    const options = {
+      method: 'POST',
+      hostname: 'api.telegram.org',
+      path: `/bot${botToken}/sendMessage`,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(form)
+      }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.ok) return resolve(parsed);
+          reject(new Error(`Telegram error ${res.statusCode}: ${data}`));
+        } catch (e) {
+          reject(new Error(`Telegram error ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(form);
     req.end();
   });
 }
