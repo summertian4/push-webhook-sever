@@ -278,9 +278,9 @@ app.get(routes.admin, requireLogin, (req, res) => {
                   <select name="priority" id="priority" required class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
                     <option value="-2">-2 (最低)</option>
                     <option value="-1">-1 (较低)</option>
-                    <option value="0" selected>0 (普通)</option>
+                    <option value="0">0 (普通)</option>
                     <option value="1">1 (高)</option>
-                    <option value="2">2 (紧急，需要 retry/expire)</option>
+                    <option value="2" selected>2 (紧急，需要 retry/expire)</option>
                   </select>
                 </div>
                 <div>
@@ -340,7 +340,7 @@ app.post(routes.webhooks, requireLogin, (req, res) => {
     token,
     name: name || '',
     providers,
-    priority: Number(priority || 0),
+    priority: Number(priority ?? 2),
     message: message || '',
     retry: retry ? Number(retry) : undefined,
     expire: expire ? Number(expire) : undefined

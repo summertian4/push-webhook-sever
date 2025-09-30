@@ -4,7 +4,7 @@
 - 管理 UI：登录后可添加/删除 webhook。
 - 支持 Pushover 与 Telegram 两种推送（逐条 Webhook 可多选通道）。
 - 管理员可在“修改密码”页更新密码（哈希存储于 data/admin.json）。
-- 对于 Pushover，可配置 priority、message、retry、expire；对于 Telegram，仅需消息内容。
+- 对于 Pushover，可配置 priority、message、retry、expire（默认 priority=2）；对于 Telegram，仅需消息内容。
 - 提供触发 URL，调用后向所选通道发送通知。
 - 首次启动时自动生成后台入口路径和随机管理员账号密码（可自定义/修改）。
 - 端口、管理员账号、后台路径、Pushover appToken/userKey 等通过 config.js 配置。
