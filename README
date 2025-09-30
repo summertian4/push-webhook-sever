@@ -1,0 +1,76 @@
+Push Webhook Server (Pushover)
+
+功能概述
+- 管理 UI：登录后可添加/删除 webhook。
+- 管理员可在“修改密码”页更新密码（哈希存储于 data/admin.json）。
+- 每个 webhook 可配置 Pushover 的 priority、message、retry、expire。
+- 提供触发 URL，调用后会向 Pushover 发送通知。
+- 首次启动时自动生成后台入口路径和随机管理员账号密码（可自定义/修改）。
+- 端口、管理员账号、后台路径、Pushover appToken/userKey 等通过 config.js 配置。
+
+快速开始
+1) 安装依赖
+   npm install
+
+2) 配置 Pushover
+   编辑 config.js，填入 pushover.appToken 和 pushover.userKey。
+
+3) 启动服务
+   npm start
+   默认运行在 http://localhost:3000 （可通过环境变量 PORT 指定；设为 0 则自动选择可用端口）。
+   首次启动会在日志中输出：
+   - Admin username / password（若未在 config.js 自定义，将随机生成）
+   - Admin login URL / Admin panel URL（带随机生成的路径片段）
+   这些信息同时会写入 data/admin.json（凭据哈希）与 data/server-meta.json（后台路径）。
+
+4) 登录管理页面
+   - 使用启动日志中的 Admin login URL 访问
+   - 使用日志中的账号密码登录（或 config.js 中自定义的账号密码）
+
+4.1) 修改管理员密码
+   - 登录后访问后台中的“修改密码”链接（路径位于随机入口下，例如 /随机路径/admin/password）
+   - 首次修改会在 data/admin.json 写入新的哈希密码；后续登录将以该文件为准
+
+5) 添加 webhook
+   - 登录后访问 /admin
+   - 填写名称、priority、默认 message、以及 priority=2 时必填的 retry/expire
+   - 保存后可看到一个触发 URL（例如 /hook/:id/:token）。
+
+6) 触发通知
+   - 对该 URL 发起 POST（或 GET），即可向 Pushover 推送。
+   - 可通过 body 或 query 传入 message、priority、retry、expire 覆盖默认值：
+     curl -X POST "http://localhost:3000/hook/ID/TOKEN" \
+       -H "Content-Type: application/json" \
+       -d '{"message":"🚨 USDE 价格报警，注意杠杆","priority":2,"retry":30,"expire":1800}'
+
+参数说明
+- priority：-2, -1, 0, 1, 2，若为 2（紧急），retry 与 expire 必填。
+- message：默认使用在 UI 中配置的 message，也可在触发时覆盖。
+- retry：单位秒，仅 priority=2 需要，最小 30。
+- expire：单位秒，仅 priority=2 需要。
+
+配置文件（config.js）
+- sessionSecret：会话密钥（请修改）
+- admin：管理员账号密码以及可选 basePath（留空，则首次启动自动生成随机路径和账号密码）
+- pushover：全局 appToken 与 userKey（请填写你自己的）
+- dataFile：webhook 数据存储文件路径
+- publicBaseUrl：用于 UI 展示完整 webhook URL（例如 https://your.domain）。留空则只显示路径。
+
+运行时数据
+- data/admin.json：当前管理员用户名 + 加密后的密码。
+- data/server-meta.json：后台入口路径等信息。
+- data/webhooks.json：保存的 webhook 列表。
+
+Pushover API 示例
+curl -X POST https://api.pushover.net/1/messages.json \
+  -d "token=YOUR_TOKEN" \
+  -d "user=YOUR_USER" \
+  -d "message=🚨 USDE 价格报警，注意杠杆" \
+  -d "priority=2" \
+  -d "retry=30" \
+  -d "expire=1800"
+
+安全建议
+- 尽快修改 config.js 中的管理员密码与 sessionSecret。
+- 使用 priority=2 时务必提供 retry 与 expire。
+- 在生产环境配置 publicBaseUrl 以便复制完整 URL。
